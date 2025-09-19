@@ -66,3 +66,6 @@ python watermark.py /path/to/images --position 左上角
 ## 许可证
 
 MIT License
+
+## 版本历史
+- v1.0 - 初始版本，支持EXIF水印添加功能
