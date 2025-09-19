@@ -27,13 +27,13 @@ def get_exif_date(image_path):
             date_str = exif_dict['Exif'][piexif.ExifIFD.DateTimeOriginal].decode('utf-8')
             # 格式: YYYY:MM:DD HH:MM:SS
             date_obj = datetime.strptime(date_str, '%Y:%m:%d %H:%M:%S')
-            return date_obj.strftime('%Y年%m月%d日')
+            return date_obj.strftime('%Y-%m-%d')
         
         # 如果没有原始时间，尝试获取数字化的时间
         elif '0th' in exif_dict and piexif.ImageIFD.DateTime in exif_dict['0th']:
             date_str = exif_dict['0th'][piexif.ImageIFD.DateTime].decode('utf-8')
             date_obj = datetime.strptime(date_str, '%Y:%m:%d %H:%M:%S')
-            return date_obj.strftime('%Y年%m月%d日')
+            return date_obj.strftime('%Y-%m-%d')
             
     except Exception as e:
         logger.warning(f"无法从 {image_path} 读取EXIF信息: {e}")
@@ -127,7 +127,7 @@ def process_directory(input_dir, font_size=36, color=(255, 255, 255), position='
             
             # 如果没有EXIF日期，使用当前日期
             if not watermark_text:
-                watermark_text = datetime.now().strftime('%Y年%m月%d日')
+                watermark_text = datetime.now().strftime('%Y-%m-%d')
                 logger.info(f"{filename} 无EXIF信息，使用当前日期")
             
             # 添加水印
