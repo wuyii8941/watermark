@@ -45,10 +45,6 @@ def build_windows():
     
     subprocess.run(cmd, check=True)
     
-    # 复制必要的文件
-    shutil.copy2("README.md", build_dir / "README.md")
-    shutil.copy2("requirements.txt", build_dir / "requirements.txt")
-    
     print(f"Windows版本构建完成: {build_dir / 'WatermarkApp.exe'}")
 
 def build_macos():
@@ -69,10 +65,6 @@ def build_macos():
     ]
     
     subprocess.run(cmd, check=True)
-    
-    # 复制必要的文件
-    shutil.copy2("README.md", build_dir / "README.md")
-    shutil.copy2("requirements.txt", build_dir / "requirements.txt")
     
     print(f"MacOS版本构建完成: {build_dir / 'WatermarkApp'}")
 

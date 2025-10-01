@@ -31,13 +31,17 @@ jobs:
       run: |
         python build.py
     
+    - name: Create Windows ZIP package
+      run: |
+        mkdir -p release
+        cd dist/windows
+        zip -r ../../release/WatermarkApp-Windows-${{ matrix.python-version }}.zip .
+    
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
       with:
         name: WatermarkApp-Windows-${{ matrix.python-version }}
-        path: |
-          dist/windows/
-          release/
+        path: release/WatermarkApp-Windows-${{ matrix.python-version }}.zip
         retention-days: 30
 
   build-macos:
@@ -64,13 +68,17 @@ jobs:
       run: |
         python build.py
     
+    - name: Create MacOS ZIP package
+      run: |
+        mkdir -p release
+        cd dist/macos
+        zip -r ../../release/WatermarkApp-MacOS-${{ matrix.python-version }}.zip .
+    
     - name: Upload MacOS artifact
       uses: actions/upload-artifact@v4
       with:
         name: WatermarkApp-MacOS-${{ matrix.python-version }}
-        path: |
-          dist/macos/
-          release/
+        path: release/WatermarkApp-MacOS-${{ matrix.python-version }}.zip
         retention-days: 30
 
   create-release:
