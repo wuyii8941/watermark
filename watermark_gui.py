@@ -40,16 +40,11 @@ class WatermarkApp:
         self.current_image_index = -1
         self.watermark_settings = {
             'text': '水印文字',
-            'font_family': 'Arial',
+            'font_family': 'SimHei',
             'font_size': 36,
             'font_color': (255, 255, 255),
-            'font_bold': False,
-            'font_italic': False,
             'opacity': 80,
             'position': '右下角',
-            'rotation': 0,
-            'shadow_enabled': False,
-            'stroke_enabled': False,
             'image_watermark_path': None,
             'image_watermark_scale': 100,
             'image_watermark_opacity': 80
@@ -65,7 +60,7 @@ class WatermarkApp:
             'prefix': 'wm_',
             'suffix': '_watermarked',
             'format': 'JPEG',
-            'quality': 90,
+            'quality': 100,
             'resize_enabled': False,
             'resize_width': 0,
             'resize_height': 0,
@@ -237,17 +232,6 @@ class WatermarkApp:
         self.font_size.set(self.watermark_settings['font_size'])
         self.font_size.bind('<KeyRelease>', self.on_font_change)
         
-        # 字体样式
-        style_frame = ttk.Frame(self.text_settings_frame)
-        style_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
-        
-        self.bold_var = tk.BooleanVar(value=self.watermark_settings['font_bold'])
-        self.italic_var = tk.BooleanVar(value=self.watermark_settings['font_italic'])
-        
-        ttk.Checkbutton(style_frame, text="粗体", variable=self.bold_var, 
-                       command=self.on_font_style_change).pack(side=tk.LEFT)
-        ttk.Checkbutton(style_frame, text="斜体", variable=self.italic_var, 
-                       command=self.on_font_style_change).pack(side=tk.LEFT)
         
         # 颜色选择
         ttk.Label(self.text_settings_frame, text="颜色:").grid(row=4, column=0, sticky=tk.W, pady=2)
@@ -327,17 +311,6 @@ class WatermarkApp:
         # 手动拖拽说明
         ttk.Label(pos_frame, text="提示: 点击预览图可手动放置水印", font=('Arial', 8)).pack(pady=(5, 0))
         
-        # 旋转设置
-        rot_frame = ttk.Frame(pos_frame)
-        rot_frame.pack(fill=tk.X, pady=(5, 0))
-        
-        ttk.Label(rot_frame, text="旋转角度:").pack(side=tk.LEFT)
-        self.rotation_var = tk.StringVar(value=str(self.watermark_settings['rotation']))
-        rotation_entry = ttk.Entry(rot_frame, textvariable=self.rotation_var, width=8)
-        rotation_entry.pack(side=tk.LEFT, padx=(5, 0))
-        rotation_entry.bind('<KeyRelease>', self.on_rotation_change)
-        
-        ttk.Label(rot_frame, text="°").pack(side=tk.LEFT, padx=(2, 0))
     
     def create_style_settings(self, parent):
         """创建样式设置面板"""
@@ -355,15 +328,6 @@ class WatermarkApp:
         opacity_label.grid(row=0, column=2, sticky=tk.W, pady=2, padx=(5, 0))
         ttk.Label(style_frame, text="%").grid(row=0, column=3, sticky=tk.W, pady=2)
         
-        # 阴影效果
-        self.shadow_var = tk.BooleanVar(value=self.watermark_settings['shadow_enabled'])
-        ttk.Checkbutton(style_frame, text="阴影效果", variable=self.shadow_var, 
-                       command=self.on_style_change).grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=2)
-        
-        # 描边效果
-        self.stroke_var = tk.BooleanVar(value=self.watermark_settings['stroke_enabled'])
-        ttk.Checkbutton(style_frame, text="描边效果", variable=self.stroke_var, 
-                       command=self.on_style_change).grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=2)
     
     def create_statusbar(self, parent):
         """创建状态栏"""
@@ -591,11 +555,6 @@ class WatermarkApp:
         except ValueError:
             pass
     
-    def on_font_style_change(self):
-        """字体样式改变事件"""
-        self.watermark_settings['font_bold'] = self.bold_var.get()
-        self.watermark_settings['font_italic'] = self.italic_var.get()
-        self.update_preview()
     
     def choose_color(self):
         """选择颜色"""
@@ -612,24 +571,9 @@ class WatermarkApp:
         self.watermark_settings['position'] = position
         self.update_preview()
     
-    def on_rotation_change(self, event=None):
-        """旋转角度改变事件"""
-        try:
-            rotation = int(self.rotation_var.get())
-            self.watermark_settings['rotation'] = rotation % 360
-            self.update_preview()
-        except ValueError:
-            pass
-    
     def on_opacity_change(self, value):
         """透明度改变事件"""
         self.watermark_settings['opacity'] = int(float(value))
-        self.update_preview()
-    
-    def on_style_change(self):
-        """样式改变事件"""
-        self.watermark_settings['shadow_enabled'] = self.shadow_var.get()
-        self.watermark_settings['stroke_enabled'] = self.stroke_var.get()
         self.update_preview()
     
     def choose_watermark_image(self):
@@ -858,16 +802,10 @@ class WatermarkApp:
         self.font_family.set(self.watermark_settings['font_family'])
         self.font_size.set(self.watermark_settings['font_size'])
         
-        self.bold_var.set(self.watermark_settings['font_bold'])
-        self.italic_var.set(self.watermark_settings['font_italic'])
-        
         self.color_preview.config(bg=self.rgb_to_hex(self.watermark_settings['font_color']))
         
         # 更新其他设置
         self.opacity_var.set(self.watermark_settings['opacity'])
-        self.shadow_var.set(self.watermark_settings['shadow_enabled'])
-        self.stroke_var.set(self.watermark_settings['stroke_enabled'])
-        self.rotation_var.set(str(self.watermark_settings['rotation']))
         
         self.update_preview()
     
@@ -1099,33 +1037,7 @@ class WatermarkApp:
                 font_path = f"/usr/share/fonts/truetype/{font_family}.ttf"
             
             if font_path and os.path.exists(font_path):
-                # 处理粗体和斜体
-                font_style = ""
-                if self.watermark_settings['font_bold']:
-                    font_style += "bold"
-                if self.watermark_settings['font_italic']:
-                    if font_style:
-                        font_style += "italic"
-                    else:
-                        font_style = "italic"
-                
-                # 尝试加载字体变体
-                if font_style:
-                    # 尝试查找粗体/斜体变体
-                    style_paths = [
-                        f"C:/Windows/Fonts/{font_family}{font_style.capitalize()}.ttf",
-                        f"C:/Windows/Fonts/{font_family}-{font_style}.ttf",
-                        f"C:/Windows/Fonts/{font_family}_{font_style}.ttf",
-                        font_path  # 回退到原始字体
-                    ]
-                    for style_path in style_paths:
-                        if os.path.exists(style_path):
-                            font = ImageFont.truetype(style_path, font_size)
-                            break
-                    else:
-                        font = ImageFont.truetype(font_path, font_size)
-                else:
-                    font = ImageFont.truetype(font_path, font_size)
+                font = ImageFont.truetype(font_path, font_size)
             else:
                 # 使用默认字体
                 font = ImageFont.load_default()
@@ -1142,68 +1054,19 @@ class WatermarkApp:
         text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
         
-        # 处理旋转
-        rotation = self.watermark_settings['rotation']
-        if rotation != 0:
-            # 创建旋转的文本层
-            text_layer = Image.new('RGBA', (text_width + 20, text_height + 20), (255, 255, 255, 0))
-            text_draw = ImageDraw.Draw(text_layer)
-            text_draw.text((10, 10), text, font=font, fill=(255, 255, 255, 255))
-            
-            # 旋转文本层
-            rotated_text = text_layer.rotate(rotation, expand=True, resample=Image.Resampling.BICUBIC)
-            
-            # 计算旋转后的位置
-            if self.watermark_settings['position'] == 'manual':
-                x = self.watermark_settings.get('manual_x', width - rotated_text.width // 2)
-                y = self.watermark_settings.get('manual_y', height - rotated_text.height // 2)
-            else:
-                x, y = self.calculate_actual_position(width, height, rotated_text.width, rotated_text.height)
-            
-            # 设置透明度
-            opacity = int(255 * self.watermark_settings['opacity'] / 100)
-            
-            # 应用透明度到旋转的文本
-            alpha = rotated_text.split()[3]
-            alpha = alpha.point(lambda p: p * opacity // 255)
-            rotated_text.putalpha(alpha)
-            
-            # 应用颜色
-            color_layer = Image.new('RGBA', rotated_text.size, self.watermark_settings['font_color'] + (255,))
-            color_layer.putalpha(alpha)
-            rotated_text = Image.composite(color_layer, rotated_text, alpha)
-            
-            # 粘贴旋转的文本
-            layer.paste(rotated_text, (x - rotated_text.width // 2, y - rotated_text.height // 2), rotated_text)
-            
+        # 计算位置
+        if self.watermark_settings['position'] == 'manual':
+            x = self.watermark_settings.get('manual_x', width - text_width - 20)
+            y = self.watermark_settings.get('manual_y', height - text_height - 20)
         else:
-            # 无旋转的正常处理
-            # 计算位置
-            if self.watermark_settings['position'] == 'manual':
-                x = self.watermark_settings.get('manual_x', width - text_width - 20)
-                y = self.watermark_settings.get('manual_y', height - text_height - 20)
-            else:
-                x, y = self.calculate_actual_position(width, height, text_width, text_height)
-            
-            # 设置透明度
-            opacity = int(255 * self.watermark_settings['opacity'] / 100)
-            color = self.watermark_settings['font_color'] + (opacity,)
-            
-            # 添加阴影效果
-            if self.watermark_settings['shadow_enabled']:
-                shadow_color = (0, 0, 0, opacity // 2)
-                draw.text((x+2, y+2), text, font=font, fill=shadow_color)
-            
-            # 添加描边效果
-            if self.watermark_settings['stroke_enabled']:
-                stroke_color = (0, 0, 0, opacity)
-                for dx in [-2, 0, 2]:
-                    for dy in [-2, 0, 2]:
-                        if dx != 0 or dy != 0:
-                            draw.text((x+dx, y+dy), text, font=font, fill=stroke_color)
-            
-            # 添加主要文字
-            draw.text((x, y), text, font=font, fill=color)
+            x, y = self.calculate_actual_position(width, height, text_width, text_height)
+        
+        # 设置透明度
+        opacity = int(255 * self.watermark_settings['opacity'] / 100)
+        color = self.watermark_settings['font_color'] + (opacity,)
+        
+        # 添加主要文字
+        draw.text((x, y), text, font=font, fill=color)
     
     def add_image_watermark(self, layer, width, height):
         """添加图片水印"""
