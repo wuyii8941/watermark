@@ -159,6 +159,21 @@ class WatermarkApp:
         self.preview_canvas.bind('<Button-1>', self.on_canvas_click)
         self.preview_canvas.bind('<B1-Motion>', self.on_canvas_drag)
         
+        # 添加拖拽支持 (Windows系统)
+        try:
+            # 尝试使用Windows特定的拖拽方法
+            import tkinter.dnd as dnd
+            self.preview_canvas.drop_target_register(dnd.DND_FILES)
+            self.preview_canvas.dnd_bind('<<Drop>>', self.on_drop_files)
+        except:
+            # 如果上面的方法失败，使用更通用的方法
+            try:
+                self.preview_canvas.drop_target_register(tk.DND_FILES)
+                self.preview_canvas.dnd_bind('<<Drop>>', self.on_drop_files)
+            except:
+                # 如果都不支持，则跳过拖拽功能
+                logger.warning("当前系统不支持拖拽功能")
+        
         # 右侧水印设置
         right_frame = ttk.Frame(parent)
         right_frame.grid(row=1, column=2, sticky=(tk.E, tk.N, tk.S), padx=(10, 0))
@@ -368,9 +383,12 @@ class WatermarkApp:
     def get_available_fonts(self):
         """获取系统可用字体"""
         try:
-            return sorted(list(set(ImageFont.getfonts())))
+            # 使用更可靠的方法获取字体列表
+            import tkinter.font as tkfont
+            fonts = list(tkfont.families())
+            return sorted(fonts)
         except:
-            return ['Arial', 'Times New Roman', 'Courier New', 'Verdana', 'Helvetica']
+            return ['Arial', 'Times New Roman', 'Courier New', 'Verdana', 'Helvetica', 'SimHei', 'Microsoft YaHei']
     
     def rgb_to_hex(self, rgb):
         """RGB元组转十六进制"""
@@ -659,32 +677,64 @@ class WatermarkApp:
     def on_canvas_click(self, event):
         """画布点击事件 - 手动放置水印"""
         # 计算点击位置对应的原图位置
-        if self.current_image_index >= 0:
-            image_path = self.images[self.current_image_index]
-            original_image = Image.open(image_path)
-            orig_width, orig_height = original_image.size
-            
-            canvas_width = self.preview_canvas.winfo_width()
-            canvas_height = self.preview_canvas.winfo_height()
-            
-            scale = min(canvas_width / orig_width, canvas_height / orig_height) * 0.9
-            x_offset = (canvas_width - orig_width * scale) // 2
-            y_offset = (canvas_height - orig_height * scale) // 2
-            
-            # 计算原图坐标
-            orig_x = int((event.x - x_offset) / scale)
-            orig_y = int((event.y - y_offset) / scale)
-            
-            if 0 <= orig_x <= orig_width and 0 <= orig_y <= orig_height:
-                # 设置手动位置
-                self.watermark_settings['position'] = 'manual'
-                self.watermark_settings['manual_x'] = orig_x
-                self.watermark_settings['manual_y'] = orig_y
-                self.update_preview()
+        if self.current_image_index >= 0 and self.images:
+            try:
+                image_path = self.images[self.current_image_index]
+                original_image = Image.open(image_path)
+                orig_width, orig_height = original_image.size
+                
+                canvas_width = self.preview_canvas.winfo_width()
+                canvas_height = self.preview_canvas.winfo_height()
+                
+                if canvas_width > 1 and canvas_height > 1:
+                    scale = min(canvas_width / orig_width, canvas_height / orig_height) * 0.9
+                    x_offset = (canvas_width - orig_width * scale) // 2
+                    y_offset = (canvas_height - orig_height * scale) // 2
+                    
+                    # 计算原图坐标
+                    orig_x = int((event.x - x_offset) / scale)
+                    orig_y = int((event.y - y_offset) / scale)
+                    
+                    if 0 <= orig_x <= orig_width and 0 <= orig_y <= orig_height:
+                        # 设置手动位置
+                        self.watermark_settings['position'] = 'manual'
+                        self.watermark_settings['manual_x'] = orig_x
+                        self.watermark_settings['manual_y'] = orig_y
+                        self.update_preview()
+                        self.status_var.set(f"水印位置已设置: ({orig_x}, {orig_y})")
+            except Exception as e:
+                logger.error(f"设置水印位置时出错: {e}")
     
     def on_canvas_drag(self, event):
         """画布拖拽事件"""
         self.on_canvas_click(event)
+    
+    def on_drop_files(self, event):
+        """拖拽文件处理事件"""
+        try:
+            # 获取拖拽的文件路径
+            files = event.data
+            if isinstance(files, str):
+                files = [files]
+            
+            # 过滤图片文件
+            supported_formats = ('.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.gif')
+            image_files = []
+            
+            for file_path in files:
+                file_path = file_path.strip()
+                if file_path and Path(file_path).suffix.lower() in supported_formats:
+                    image_files.append(file_path)
+            
+            if image_files:
+                self.add_images(image_files)
+                self.status_var.set(f"拖拽导入 {len(image_files)} 张图片")
+            else:
+                self.status_var.set("拖拽的文件中没有支持的图片格式")
+                
+        except Exception as e:
+            logger.error(f"处理拖拽文件时出错: {e}")
+            self.status_var.set("拖拽导入失败")
     
     def on_image_select(self, event):
         """图片选择事件"""
@@ -1033,52 +1083,127 @@ class WatermarkApp:
             # 尝试创建字体
             font_path = None
             if sys.platform == "win32":
-                font_path = f"C:/Windows/Fonts/{font_family}.ttf"
+                # Windows字体路径
+                font_paths = [
+                    f"C:/Windows/Fonts/{font_family}.ttf",
+                    f"C:/Windows/Fonts/{font_family}.ttc",
+                    f"C:/Windows/Fonts/{font_family}.otf"
+                ]
+                for path in font_paths:
+                    if os.path.exists(path):
+                        font_path = path
+                        break
             elif sys.platform == "darwin":  # macOS
                 font_path = f"/Library/Fonts/{font_family}.ttf"
             else:  # Linux
                 font_path = f"/usr/share/fonts/truetype/{font_family}.ttf"
             
-            if os.path.exists(font_path):
-                font = ImageFont.truetype(font_path, font_size)
+            if font_path and os.path.exists(font_path):
+                # 处理粗体和斜体
+                font_style = ""
+                if self.watermark_settings['font_bold']:
+                    font_style += "bold"
+                if self.watermark_settings['font_italic']:
+                    if font_style:
+                        font_style += "italic"
+                    else:
+                        font_style = "italic"
+                
+                # 尝试加载字体变体
+                if font_style:
+                    # 尝试查找粗体/斜体变体
+                    style_paths = [
+                        f"C:/Windows/Fonts/{font_family}{font_style.capitalize()}.ttf",
+                        f"C:/Windows/Fonts/{font_family}-{font_style}.ttf",
+                        f"C:/Windows/Fonts/{font_family}_{font_style}.ttf",
+                        font_path  # 回退到原始字体
+                    ]
+                    for style_path in style_paths:
+                        if os.path.exists(style_path):
+                            font = ImageFont.truetype(style_path, font_size)
+                            break
+                    else:
+                        font = ImageFont.truetype(font_path, font_size)
+                else:
+                    font = ImageFont.truetype(font_path, font_size)
             else:
                 # 使用默认字体
                 font = ImageFont.load_default()
-        except:
+        except Exception as e:
+            logger.warning(f"字体加载失败: {e}，使用默认字体")
             font = ImageFont.load_default()
         
         # 计算文本位置
         text = self.watermark_settings['text']
+        if not text:
+            return
+            
         bbox = draw.textbbox((0, 0), text, font=font)
         text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
         
-        # 计算位置
-        if self.watermark_settings['position'] == 'manual':
-            x = self.watermark_settings.get('manual_x', width - text_width - 20)
-            y = self.watermark_settings.get('manual_y', height - text_height - 20)
+        # 处理旋转
+        rotation = self.watermark_settings['rotation']
+        if rotation != 0:
+            # 创建旋转的文本层
+            text_layer = Image.new('RGBA', (text_width + 20, text_height + 20), (255, 255, 255, 0))
+            text_draw = ImageDraw.Draw(text_layer)
+            text_draw.text((10, 10), text, font=font, fill=(255, 255, 255, 255))
+            
+            # 旋转文本层
+            rotated_text = text_layer.rotate(rotation, expand=True, resample=Image.Resampling.BICUBIC)
+            
+            # 计算旋转后的位置
+            if self.watermark_settings['position'] == 'manual':
+                x = self.watermark_settings.get('manual_x', width - rotated_text.width // 2)
+                y = self.watermark_settings.get('manual_y', height - rotated_text.height // 2)
+            else:
+                x, y = self.calculate_actual_position(width, height, rotated_text.width, rotated_text.height)
+            
+            # 设置透明度
+            opacity = int(255 * self.watermark_settings['opacity'] / 100)
+            
+            # 应用透明度到旋转的文本
+            alpha = rotated_text.split()[3]
+            alpha = alpha.point(lambda p: p * opacity // 255)
+            rotated_text.putalpha(alpha)
+            
+            # 应用颜色
+            color_layer = Image.new('RGBA', rotated_text.size, self.watermark_settings['font_color'] + (255,))
+            color_layer.putalpha(alpha)
+            rotated_text = Image.composite(color_layer, rotated_text, alpha)
+            
+            # 粘贴旋转的文本
+            layer.paste(rotated_text, (x - rotated_text.width // 2, y - rotated_text.height // 2), rotated_text)
+            
         else:
-            x, y = self.calculate_actual_position(width, height, text_width, text_height)
-        
-        # 设置透明度
-        opacity = int(255 * self.watermark_settings['opacity'] / 100)
-        color = self.watermark_settings['font_color'] + (opacity,)
-        
-        # 添加阴影效果
-        if self.watermark_settings['shadow_enabled']:
-            shadow_color = (0, 0, 0, opacity // 2)
-            draw.text((x+2, y+2), text, font=font, fill=shadow_color)
-        
-        # 添加描边效果
-        if self.watermark_settings['stroke_enabled']:
-            stroke_color = (0, 0, 0, opacity)
-            for dx in [-2, 0, 2]:
-                for dy in [-2, 0, 2]:
-                    if dx != 0 or dy != 0:
-                        draw.text((x+dx, y+dy), text, font=font, fill=stroke_color)
-        
-        # 添加主要文字
-        draw.text((x, y), text, font=font, fill=color)
+            # 无旋转的正常处理
+            # 计算位置
+            if self.watermark_settings['position'] == 'manual':
+                x = self.watermark_settings.get('manual_x', width - text_width - 20)
+                y = self.watermark_settings.get('manual_y', height - text_height - 20)
+            else:
+                x, y = self.calculate_actual_position(width, height, text_width, text_height)
+            
+            # 设置透明度
+            opacity = int(255 * self.watermark_settings['opacity'] / 100)
+            color = self.watermark_settings['font_color'] + (opacity,)
+            
+            # 添加阴影效果
+            if self.watermark_settings['shadow_enabled']:
+                shadow_color = (0, 0, 0, opacity // 2)
+                draw.text((x+2, y+2), text, font=font, fill=shadow_color)
+            
+            # 添加描边效果
+            if self.watermark_settings['stroke_enabled']:
+                stroke_color = (0, 0, 0, opacity)
+                for dx in [-2, 0, 2]:
+                    for dy in [-2, 0, 2]:
+                        if dx != 0 or dy != 0:
+                            draw.text((x+dx, y+dy), text, font=font, fill=stroke_color)
+            
+            # 添加主要文字
+            draw.text((x, y), text, font=font, fill=color)
     
     def add_image_watermark(self, layer, width, height):
         """添加图片水印"""

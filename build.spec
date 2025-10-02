@@ -43,5 +43,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='watermark_icon.ico',  # 如果有图标文件的话
+    icon=None,  # 移除图标引用
 )
